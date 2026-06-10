@@ -19,7 +19,6 @@
 
 namespace fs = std::filesystem;
 
-// Estructura para guardar conexión a un servidor remoto
 struct ServerConn {
     std::string tipo;
     std::string ip;
@@ -34,7 +33,6 @@ std::map<std::string, ServerConn> servidores = {
     {"pdf",   {"pdf",   "", 0, -1, false}}
 };
 
-// Conectar a un servidor remoto
 bool conectar_remoto(const std::string& tipo, const std::string& ip, int puerto) {
     if (servidores[tipo].conectado) {
         close(servidores[tipo].socket_fd);
@@ -61,7 +59,6 @@ bool conectar_remoto(const std::string& tipo, const std::string& ip, int puerto)
     return true;
 }
 
-// Desconectar de un servidor remoto
 void desconectar_remoto(const std::string& tipo) {
     if (servidores[tipo].conectado) {
         close(servidores[tipo].socket_fd);
@@ -69,7 +66,6 @@ void desconectar_remoto(const std::string& tipo) {
     }
 }
 
-// Enviar comando a un servidor remoto y recibir respuesta línea a línea
 std::string enviar_comando(const std::string& tipo, const std::string& cmd) {
     if (!servidores[tipo].conectado) return "ERROR: Servidor no conectado";
     send(servidores[tipo].socket_fd, cmd.c_str(), cmd.size(), 0);
@@ -80,23 +76,20 @@ std::string enviar_comando(const std::string& tipo, const std::string& cmd) {
         int bytes = recv(servidores[tipo].socket_fd, buffer, BUFFER_SIZE - 1, 0);
         if (bytes <= 0) break;
         respuesta += buffer;
-        if (respuesta.find('\n') != std::string::npos) break; // asumimos que cada comando devuelve una línea o bloque
+        if (respuesta.find('\n') != std::string::npos) break;
     }
     return respuesta;
 }
 
-// Descargar un archivo y enviar progreso al frontend (a través del socket de control)
 void descargar_archivo(int frontend_fd, const std::string& tipo, const std::string& filename) {
     if (!servidores[tipo].conectado) {
         send(frontend_fd, "ERROR: Servidor no conectado\n", 30, 0);
         return;
     }
 
-    // Enviar comando DOWNLOAD al servidor remoto
     std::string cmd = "DOWNLOAD " + filename + "\n";
     send(servidores[tipo].socket_fd, cmd.c_str(), cmd.size(), 0);
 
-    // Leer respuesta: primero debe llegar "SIZE <tamaño>\n"
     char buffer[BUFFER_SIZE];
     memset(buffer, 0, BUFFER_SIZE);
     int bytes = recv(servidores[tipo].socket_fd, buffer, BUFFER_SIZE - 1, 0);
@@ -110,9 +103,8 @@ void descargar_archivo(int frontend_fd, const std::string& tipo, const std::stri
         return;
     }
     size_t size = std::stoull(respuesta.substr(5));
-    send(frontend_fd, ("SIZE " + std::to_string(size) + "\n").c_str(), 0, 0); // notificar tamaño al frontend
+    send(frontend_fd, ("SIZE " + std::to_string(size) + "\n").c_str(), 0, 0);
 
-    // Crear directorio descargas si no existe
     fs::create_directory("descargas");
     std::string path = "descargas/" + filename;
     std::ofstream outfile(path, std::ios::binary);
@@ -146,7 +138,6 @@ void descargar_archivo(int frontend_fd, const std::string& tipo, const std::stri
     }
 }
 
-// Atender comandos del frontend
 void atender_frontend(int frontend_fd) {
     char buffer[BUFFER_SIZE];
     while (true) {

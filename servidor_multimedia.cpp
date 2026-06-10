@@ -37,7 +37,6 @@ void atender_cliente(int client_fd, const std::string& directorio) {
 
         comando = buffer;
         if (comando.rfind("LIST", 0) == 0) {
-            // Enviar lista de archivos
             std::string lista;
             for (const auto& entry : fs::directory_iterator(directorio)) {
                 if (entry.is_regular_file()) {
@@ -48,7 +47,6 @@ void atender_cliente(int client_fd, const std::string& directorio) {
         }
         else if (comando.rfind("DOWNLOAD ", 0) == 0) {
             std::string filename = comando.substr(9);
-            // Eliminar posibles saltos de línea
             filename.erase(filename.find_last_not_of("\n\r") + 1);
             std::string path = directorio + "/" + filename;
 
@@ -59,15 +57,12 @@ void atender_cliente(int client_fd, const std::string& directorio) {
                 continue;
             }
 
-            // Obtener tamaño
             size_t size = file.tellg();
             file.seekg(0, std::ios::beg);
 
-            // Enviar tamaño
             std::string sizeMsg = "SIZE " + std::to_string(size) + "\n";
             send(client_fd, sizeMsg.c_str(), sizeMsg.size(), 0);
 
-            // Enviar contenido en bloques
             char fileBuffer[BUFFER_SIZE];
             while (!file.eof()) {
                 file.read(fileBuffer, BUFFER_SIZE);
@@ -96,7 +91,6 @@ int main(int argc, char* argv[]) {
     int port = std::stoi(argv[1]);
     std::string directorio = argv[2];
 
-    // Verificar que el directorio existe
     if (!fs::exists(directorio) || !fs::is_directory(directorio)) {
         std::cerr << "Error: el directorio '" << directorio << "' no existe o no es válido." << std::endl;
         return 1;
