@@ -20,13 +20,11 @@ class MultimediaClient:
         self.root.title("Cliente Multimedia Distribuido")
         self.root.geometry("700x500")
 
-        # Estado del backend y conexiones
         self.backend_process = None
         self.backend_socket = None
         self.receive_thread = None
         self.downloading = False
 
-        # Configuración de servidores (IPs y puertos editables)
         self.servers = {
             "video": {"ip": tk.StringVar(value="127.0.0.1"), "port": tk.StringVar(value="65433"), "connected": False},
             "audio": {"ip": tk.StringVar(value="127.0.0.1"), "port": tk.StringVar(value="65434"), "connected": False},
@@ -37,19 +35,12 @@ class MultimediaClient:
         self.progress_var = tk.IntVar()
         self.progress_bar = None
 
-        # Lanzar el backend (compilar si es necesario)
         self.start_backend()
-
-        # Construir interfaz y conectar al backend
         self.create_widgets()
         self.connect_to_backend()
-
-        # Manejar cierre de ventana
         self.root.protocol("WM_DELETE_WINDOW", self.on_closing)
 
     def start_backend(self):
-        """Compila (si no existe) y ejecuta el backend C++ como subproceso."""
-        # Compilar si el binario no existe o el código fuente es más reciente
         if not os.path.exists(BACKEND_BIN):
             print("Compilando backend...")
             try:
@@ -59,35 +50,28 @@ class MultimediaClient:
                 messagebox.showerror("Error", f"No se pudo compilar el backend:\n{e}")
                 sys.exit(1)
 
-        # Lanzar el backend en segundo plano
         try:
-            # Usar preexec_fn para poder matar todo el grupo de procesos (Unix)
             self.backend_process = subprocess.Popen(
                 [BACKEND_BIN],
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 preexec_fn=os.setsid if os.name != 'nt' else None
             )
-            # Dar tiempo para que el backend abra el socket
             time.sleep(0.5)
-            # Leer la salida en un hilo (para depuración)
             threading.Thread(target=self.read_backend_output, daemon=True).start()
         except Exception as e:
             messagebox.showerror("Error", f"No se pudo ejecutar el backend:\n{e}")
             sys.exit(1)
 
     def read_backend_output(self):
-        """Lee stdout/stderr del backend y los muestra en consola."""
         for line in iter(self.backend_process.stdout.readline, b''):
             print(f"[Backend] {line.decode().strip()}")
         for line in iter(self.backend_process.stderr.readline, b''):
             print(f"[Backend ERROR] {line.decode().strip()}")
 
     def connect_to_backend(self):
-        """Conectar al backend local mediante socket TCP."""
         try:
             self.backend_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            # Reintentar hasta que el backend esté listo
             for _ in range(10):
                 try:
                     self.backend_socket.connect((BACKEND_HOST, BACKEND_PORT))
@@ -106,7 +90,6 @@ class MultimediaClient:
             self.on_closing()
 
     def receive_messages(self):
-        """Hilo que recibe mensajes del backend (lista, progreso, etc.)"""
         buffer = ""
         while True:
             try:
@@ -121,7 +104,6 @@ class MultimediaClient:
                 break
 
     def process_backend_message(self, msg):
-        """Procesa cada línea proveniente del backend."""
         if msg.startswith("PROGRESS "):
             percent = int(msg.split()[1])
             self.progress_var.set(percent)
@@ -137,10 +119,8 @@ class MultimediaClient:
             self.download_btn.config(state="normal")
             messagebox.showerror("Error", msg)
         elif msg.startswith("SIZE "):
-            # Solo informativo, no se muestra en GUI
             pass
         else:
-            # Asumimos que es la lista de archivos (una línea por archivo)
             if not self.downloading:
                 self.file_listbox.delete(0, tk.END)
                 for f in msg.splitlines():
@@ -148,15 +128,12 @@ class MultimediaClient:
                         self.file_listbox.insert(tk.END, f)
 
     def send_command(self, cmd):
-        """Envía un comando al backend."""
         try:
             self.backend_socket.sendall((cmd + "\n").encode())
         except:
             messagebox.showerror("Error", "Perdida conexión con backend")
 
     def create_widgets(self):
-        """Construye la interfaz gráfica completa."""
-        # Marco de configuración de servidores
         config_frame = tk.LabelFrame(self.root, text="Configuración de servidores", padx=10, pady=5)
         config_frame.pack(fill="x", padx=10, pady=5)
 
@@ -172,14 +149,12 @@ class MultimediaClient:
             info["btn"] = btn
             row += 1
 
-        # Selección de servidor activo
         active_frame = tk.LabelFrame(self.root, text="Servidor activo", padx=10, pady=5)
         active_frame.pack(fill="x", padx=10, pady=5)
         for tipo in self.servers.keys():
             tk.Radiobutton(active_frame, text=tipo.upper(), variable=self.active_server,
                            value=tipo, command=self.refresh_list).pack(side="left", padx=10)
 
-        # Lista de archivos
         list_frame = tk.Frame(self.root)
         list_frame.pack(fill="both", expand=True, padx=10, pady=5)
         tk.Label(list_frame, text="Archivos disponibles:").pack(anchor="w")
@@ -192,7 +167,6 @@ class MultimediaClient:
         btn_refresh = tk.Button(self.root, text="Refrescar lista", command=self.refresh_list)
         btn_refresh.pack(pady=5)
 
-        # Descarga
         download_frame = tk.Frame(self.root)
         download_frame.pack(fill="x", padx=10, pady=5)
         tk.Label(download_frame, text="Nombre del archivo:").pack(side="left")
@@ -201,18 +175,15 @@ class MultimediaClient:
         self.download_btn = tk.Button(download_frame, text="Descargar", command=self.download_file)
         self.download_btn.pack(side="left", padx=5)
 
-        # Barra de progreso
         self.progress_bar = ttk.Progressbar(self.root, variable=self.progress_var, maximum=100)
         self.progress_bar.pack(fill="x", padx=10, pady=5)
         self.progress_label = tk.Label(self.root, text="")
         self.progress_label.pack()
 
-        # Estado de conexión
         self.status_label = tk.Label(self.root, text="Conectando a backend...", fg="gray")
         self.status_label.pack(side="bottom", pady=5)
 
     def toggle_connection(self, tipo):
-        """Conectar o desconectar un servidor remoto."""
         info = self.servers[tipo]
         if not info["connected"]:
             ip = info["ip"].get().strip()
@@ -221,18 +192,17 @@ class MultimediaClient:
                 messagebox.showerror("Error", "IP y puerto requeridos")
                 return
             self.send_command(f"CONNECT {tipo} {ip} {port}")
-            # Asumimos éxito (el backend responderá OK). Actualizamos estado local.
             info["connected"] = True
             info["btn"].config(text="Desconectar", bg="lightcoral")
             self.status_label.config(text=f"Conectado a {tipo}", fg="blue")
         else:
             self.send_command(f"DISCONNECT {tipo}")
             info["connected"] = False
-            info["btn"].config(text="Conectar", bg="SystemButtonFace")
+            # CORRECCIÓN: usar un color estándar que funcione en todos los sistemas
+            info["btn"].config(text="Conectar", bg="lightgray")
             self.status_label.config(text=f"Desconectado de {tipo}", fg="gray")
 
     def refresh_list(self):
-        """Solicitar lista de archivos del servidor activo."""
         tipo = self.active_server.get()
         if not self.servers[tipo]["connected"]:
             messagebox.showwarning("Aviso", f"El servidor {tipo} no está conectado")
@@ -240,7 +210,6 @@ class MultimediaClient:
         self.send_command(f"LIST {tipo}")
 
     def download_file(self):
-        """Iniciar descarga del archivo seleccionado o escrito."""
         if self.downloading:
             return
         tipo = self.active_server.get()
@@ -262,7 +231,6 @@ class MultimediaClient:
         self.send_command(f"DOWNLOAD {tipo} {filename}")
 
     def on_closing(self):
-        """Cierra el backend y destruye la ventana."""
         if self.backend_process:
             try:
                 if os.name != 'nt':

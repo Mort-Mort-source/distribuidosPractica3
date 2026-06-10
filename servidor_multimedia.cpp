@@ -60,6 +60,8 @@ void atender_cliente(int client_fd, const std::string& directorio) {
             size_t size = file.tellg();
             file.seekg(0, std::ios::beg);
 
+            std::cout << "[Servidor " << directorio << "] Enviando: " << filename << " (" << size << " bytes) a " << ip << ":" << puerto << std::endl;
+
             std::string sizeMsg = "SIZE " + std::to_string(size) + "\n";
             send(client_fd, sizeMsg.c_str(), sizeMsg.size(), 0);
 

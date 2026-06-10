@@ -22,13 +22,13 @@ g++ -std=c++17 -pthread servidor_multimedia.cpp -o servidor
 
 ```bash 
 # Servidor de videos (puerto 65433)
-./servidor 65433 ~/servidor_multimedia/videos
+./servidor 65433 videos/
 
 # Servidor de audios (puerto 65434)
-./servidor 65434 ~/servidor_multimedia/audios
+./servidor 65434 audios/
 
 # Servidor de PDFs (puerto 65435)
-./servidor 65435 ~/servidor_multimedia/pdfs
+./servidor 65435 pdfs/
 ```
 
 # PC CLIENTE
